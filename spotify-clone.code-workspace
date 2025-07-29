@@ -1,0 +1,22 @@
+{
+	"folders": [
+		{
+			"path": "../../Spotify/spotify-clone/spotify-clone"
+		},
+		{
+			"path": "../../spo"
+		},
+		{
+			"path": "../../../MyNewApp/check"
+		},
+		{
+			"path": "../../food"
+		},
+		{
+			"path": ".."
+		}
+	],
+	"settings": {
+		"folder-color.pathColors": []
+	}
+}
