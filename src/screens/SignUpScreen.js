@@ -1,8 +1,16 @@
 import React, { useState, useContext } from 'react';
 import { 
-  View, TextInput, StyleSheet, Text, TouchableOpacity, 
-  Image, ScrollView, ActivityIndicator, KeyboardAvoidingView,
-  Platform, Alert, Keyboard
+  View, 
+  TextInput, 
+  StyleSheet, 
+  Text, 
+  TouchableOpacity, 
+  ScrollView, 
+  ActivityIndicator, 
+  KeyboardAvoidingView,
+  Platform, 
+  Alert, 
+  Keyboard
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,12 +18,11 @@ import { Formik } from 'formik';
 import * as Yup from 'yup';
 import { AuthContext } from '../contexts/AuthContext';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
-// Google logo import removed - using relative path
 
 const signUpSchema = Yup.object().shape({
   name: Yup.string().required('Name is required'),
   email: Yup.string().email('Invalid email').required('Email is required'),
-  password: Yup.string().min(8, 'Too short!').required('Required'),
+  password: Yup.string().min(8, 'Password must be at least 8 characters').required('Required'),
   confirmPassword: Yup.string()
     .oneOf([Yup.ref('password'), null], 'Passwords must match')
     .required('Required'),
@@ -25,42 +32,63 @@ const SignUpScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const { signUp, signInWithGoogle, signInWithApple } = useContext(AuthContext);
+  const { signUp } = useContext(AuthContext);
 
   const handleSignUp = async (values) => {
     try {
       Keyboard.dismiss();
-      setIsLoading(true);
-      await signUp(values.email, values.password, values.name);
-    } catch (error) {
-      Alert.alert('Error', error.message || 'Failed to create account');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleGoogleSignUp = async () => {
-    try {
-      setIsLoading(true);
-      await signInWithGoogle();
-    } catch (error) {
-      Alert.alert('Error', 'Failed to sign up with Google');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleAppleSignUp = async () => {
-    try {
-      setIsLoading(true);
-      await signInWithApple();
-    } catch (error) {
-      if (error.code !== 'ERR_CANCELED') {
-        Alert.alert('Error', 'Failed to sign up with Apple');
+      
+      // Validate passwords match
+      if (values.password !== values.confirmPassword) {
+        Alert.alert('Error', 'Passwords do not match');
+        return;
       }
+      
+      setIsLoading(true);
+      
+      // Prepare user data for registration
+      const userData = {
+        name: values.name,
+        email: values.email.toLowerCase().trim(),
+        password: values.password,
+        phone: values.phone || ''
+      };
+      
+      console.log('Attempting to register user:', userData.email);
+      
+      // Call the signUp function from AuthContext with user data
+      const result = await signUp(userData);
+      console.log('Sign up result:', result);
+      
+      if (result && result.success) {
+        // Show success message and navigate to home
+        Alert.alert('Success', 'Account created successfully!', [
+          { 
+            text: 'OK', 
+            onPress: () => {
+              // Reset navigation stack and navigate to MainApp
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'MainApp' }],
+              });
+            }
+          }
+        ]);
+      } else {
+        const errorMessage = result?.error || 'Failed to create account';
+        console.error('Sign up failed:', errorMessage);
+        Alert.alert('Error', errorMessage);
+      }
+    } catch (error) {
+      console.error('Sign up error:', error);
+      Alert.alert('Error', error.message || 'An error occurred during sign up. Please try again.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSignIn = () => {
+    navigation.navigate('SignIn');
   };
 
   return (
@@ -167,7 +195,7 @@ const SignUpScreen = ({ navigation }) => {
               )}
 
               <TouchableOpacity 
-                style={styles.signUpButton}
+                style={[styles.signUpButton, isLoading && styles.disabledButton]}
                 onPress={handleSubmit}
                 disabled={isLoading}
               >
@@ -178,50 +206,15 @@ const SignUpScreen = ({ navigation }) => {
                 )}
               </TouchableOpacity>
 
-              <View style={styles.dividerContainer}>
-                <View style={styles.divider} />
-                <Text style={styles.dividerText}>OR</Text>
-                <View style={styles.divider} />
-              </View>
-
-              <View style={styles.socialButtonsContainer}>
-                <TouchableOpacity 
-                  style={[styles.socialButton, styles.googleButton]}
-                  onPress={handleGoogleSignUp}
-                  disabled={isLoading}
-                >
-                  <Image 
-                    source={require('../../assets/images/google.png')} 
-                    style={styles.socialIcon} 
-                  />
-                  <Text style={[styles.socialButtonText, { color: COLORS.dark }]}>
-                    {isLoading ? 'Signing up...' : 'Continue with Google'}
-                  </Text>
+              <View style={styles.signInContainer}>
+                <Text style={styles.signInText}>Already have an account? </Text>
+                <TouchableOpacity onPress={handleSignIn} disabled={isLoading}>
+                  <Text style={styles.signInLink}>Sign In</Text>
                 </TouchableOpacity>
-
-                {Platform.OS === 'ios' && (
-                  <TouchableOpacity 
-                    style={[styles.socialButton, styles.appleButton]}
-                    onPress={handleAppleSignUp}
-                    disabled={isLoading}
-                  >
-                    <Ionicons name="logo-apple" size={20} color="#fff" />
-                    <Text style={[styles.socialButtonText, { color: '#fff' }]}>
-                      {isLoading ? 'Signing up...' : 'Continue with Apple'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
               </View>
             </View>
           )}
         </Formik>
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Already have an account? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('SignIn')}>
-            <Text style={styles.signInText}>Sign In</Text>
-          </TouchableOpacity>
-        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -238,6 +231,7 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: SIZES.padding * 2,
+    alignItems: 'center',
   },
   title: {
     ...FONTS.h1,
@@ -249,7 +243,6 @@ const styles = StyleSheet.create({
     color: COLORS.gray,
   },
   form: {
-    flex: 1,
     marginTop: SIZES.padding,
   },
   inputContainer: {
@@ -259,96 +252,52 @@ const styles = StyleSheet.create({
     borderRadius: SIZES.radius,
     paddingHorizontal: SIZES.padding,
     marginBottom: SIZES.base,
-    height: 50,
   },
   inputIcon: {
     marginRight: SIZES.base,
   },
   input: {
     flex: 1,
-    height: '100%',
+    height: 50,
+    color: COLORS.black,
     ...FONTS.body4,
-    color: COLORS.dark,
   },
   eyeIcon: {
     padding: SIZES.base,
   },
   errorText: {
-    ...FONTS.body5,
     color: COLORS.error,
-    marginTop: -SIZES.base / 2,
-    marginBottom: SIZES.base / 2,
+    ...FONTS.body5,
+    marginBottom: SIZES.base,
     marginLeft: SIZES.base,
   },
   signUpButton: {
     backgroundColor: COLORS.primary,
-    height: 50,
     borderRadius: SIZES.radius,
+    height: 50,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: SIZES.padding,
-    marginBottom: SIZES.padding,
+  },
+  disabledButton: {
+    opacity: 0.7,
   },
   signUpButtonText: {
-    ...FONTS.h3,
     color: COLORS.white,
+    ...FONTS.h3,
   },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: SIZES.padding,
-  },
-  divider: {
-    flex: 1,
-    height: 1,
-    backgroundColor: COLORS.lightGray2,
-  },
-  dividerText: {
-    ...FONTS.body5,
-    color: COLORS.gray,
-    marginHorizontal: SIZES.base,
-  },
-  socialButtonsContainer: {
-    marginBottom: SIZES.padding,
-  },
-  socialButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 50,
-    borderRadius: SIZES.radius,
-    marginBottom: SIZES.base,
-    paddingHorizontal: SIZES.padding,
-  },
-  googleButton: {
-    backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: COLORS.lightGray2,
-  },
-  appleButton: {
-    backgroundColor: COLORS.dark,
-  },
-  socialIcon: {
-    width: 20,
-    height: 20,
-    marginRight: SIZES.base,
-  },
-  socialButtonText: {
-    ...FONTS.h4,
-  },
-  footer: {
+  signInContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 'auto',
-    paddingVertical: SIZES.padding,
-  },
-  footerText: {
-    ...FONTS.body4,
-    color: COLORS.gray,
+    marginTop: SIZES.padding,
   },
   signInText: {
+    color: COLORS.gray,
     ...FONTS.body4,
+  },
+  signInLink: {
     color: COLORS.primary,
+    ...FONTS.body4,
     fontWeight: 'bold',
   },
 });
